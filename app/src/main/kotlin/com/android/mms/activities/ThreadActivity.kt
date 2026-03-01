@@ -32,6 +32,7 @@ import android.text.format.DateUtils
 import android.text.format.DateUtils.FORMAT_NO_YEAR
 import android.text.format.DateUtils.FORMAT_SHOW_DATE
 import android.text.format.DateUtils.FORMAT_SHOW_TIME
+import android.util.Log
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
@@ -94,6 +95,7 @@ import kotlin.collections.HashSet
 import kotlin.collections.set
 
 class ThreadActivity : SimpleActivity() {
+    private val debugTag = "ThreadActivityFee"
     private var threadId = 0L
     private var currentSIMCardIndex = 0
     private var isActivityVisible = false
@@ -1209,13 +1211,16 @@ class ThreadActivity : SimpleActivity() {
             availableSIMCards = availableSIMCards,
             currentSIMCardIndex = currentSIMCardIndex
         )
+        Log.d(debugTag, "updateAvailableMessageCountForCurrentSim: resolved slotId=$slotId")
         if (slotId == null) {
+            Log.d(debugTag, "updateAvailableMessageCountForCurrentSim: slotId is null, hiding view")
             binding.messageHolder.threadAvailableMessageCount.beGone()
             return
         }
 
         ensureBackgroundThread {
             val smsCount = FeeInfoUtils.getAvailableSmsCountForSlot(this, slotId)
+            Log.d(debugTag, "updateAvailableMessageCountForCurrentSim: slotId=$slotId, smsCount=$smsCount")
             runOnUiThread {
                 val countView = binding.messageHolder.threadAvailableMessageCount
                 if (smsCount == null) {

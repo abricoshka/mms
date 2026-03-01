@@ -16,6 +16,7 @@ import android.telephony.SmsManager
 import android.telephony.SmsMessage
 import android.telephony.SubscriptionInfo
 import android.text.TextUtils
+import android.util.Log
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
@@ -49,6 +50,7 @@ import java.util.Locale
 import java.util.Objects
 
 class NewConversationActivity : SimpleActivity() {
+    private val debugTag = "NewConversationFee"
     private var allContacts = ArrayList<SimpleContact>()
     private var privateContacts = ArrayList<SimpleContact>()
     private var isSpeechToTextAvailable = false
@@ -1255,13 +1257,16 @@ class NewConversationActivity : SimpleActivity() {
             availableSIMCards = availableSIMCards,
             currentSIMCardIndex = currentSIMCardIndex
         )
+        Log.d(debugTag, "updateAvailableMessageCountForCurrentSim: resolved slotId=$slotId")
         if (slotId == null) {
+            Log.d(debugTag, "updateAvailableMessageCountForCurrentSim: slotId is null, hiding view")
             binding.messageHolder.threadAvailableMessageCount.beGone()
             return
         }
 
         ensureBackgroundThread {
             val smsCount = FeeInfoUtils.getAvailableSmsCountForSlot(this, slotId)
+            Log.d(debugTag, "updateAvailableMessageCountForCurrentSim: slotId=$slotId, smsCount=$smsCount")
             runOnUiThread {
                 val countView = binding.messageHolder.threadAvailableMessageCount
                 if (smsCount == null) {
