@@ -9,7 +9,7 @@ import com.bumptech.glide.Glide
 import com.goodwy.commons.adapters.MyRecyclerViewAdapter
 import com.goodwy.commons.databinding.ItemContactWithNumberBinding
 import com.goodwy.commons.extensions.*
-import com.goodwy.commons.helpers.SimpleContactsHelper
+import com.goodwy.commons.helpers.AvatarResolver
 import com.goodwy.commons.models.SimpleContact
 import com.goodwy.commons.models.PhoneNumber
 import com.goodwy.commons.views.MyRecyclerView
@@ -93,12 +93,15 @@ class ContactsAdapter(
             }
 
             itemContactImage.beGoneIf(!baseConfig.showContactThumbnails)
-            if (contact.isABusinessContact() && contact.photoUri == "") {
-                val drawable = SimpleContactsHelper(activity).getColoredCompanyIcon(contact.name)
-                itemContactImage.setImageDrawable(drawable)
-            } else {
-                SimpleContactsHelper(activity).loadContactImage(contact.photoUri, itemContactImage, contact.name)
-            }
+            itemContactImage.bind(
+                AvatarResolver.resolve(
+                    contactId = contact.rawId.toLong(),
+                    posterConfig = null,
+                    contactPhotoUri = contact.photoUri.takeIf { it.isNotEmpty() },
+                    contactName = contact.name,
+                    styleConfig = null
+                )
+            )
         }
     }
 

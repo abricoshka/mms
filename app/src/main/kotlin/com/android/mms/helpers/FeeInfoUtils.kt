@@ -1,6 +1,7 @@
 package com.android.mms.helpers
 
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.content.Context
 import android.net.Uri
 import android.telephony.SmsManager
@@ -42,8 +43,20 @@ object FeeInfoUtils {
     fun getAvailableSmsCountForSlot(context: Context, slotId: Int): Int? {
         return try {
             val allUri = Uri.parse("content://com.android.dialer.feeinfo/fee_info")
+            val permissionState = context.checkSelfPermission("com.android.dialer.permission.READ_FEE_INFO")
+            val providerInfo = context.packageManager.resolveContentProvider("com.android.dialer.feeinfo", 0)
+            Log.d(
+                TAG,
+                "getAvailableSmsCountForSlot: permissionGranted=${permissionState == PackageManager.PERMISSION_GRANTED}, " +
+                    "providerFound=${providerInfo != null}, providerPackage=${providerInfo?.packageName}"
+            )
             Log.d(TAG, "getAvailableSmsCountForSlot: querying uri=$allUri for slotId=$slotId")
-            context.contentResolver.query(allUri, null, null, null, null)?.use { cursor ->
+            val cursor = context.contentResolver.query(allUri, null, null, null, null)
+            if (cursor == null) {
+                Log.d(TAG, "getAvailableSmsCountForSlot: query returned null cursor")
+                return null
+            }
+            cursor.use {
                 val slotIdColumn = cursor.getColumnIndex("slot_id")
                 val smsColumn = cursor.getColumnIndex("sms")
                 if (slotIdColumn == -1 || smsColumn == -1) {
@@ -51,7 +64,9 @@ object FeeInfoUtils {
                     return null
                 }
 
+                var rowCount = 0
                 while (cursor.moveToNext()) {
+                    rowCount++
                     val providerSlotId = cursor.getInt(slotIdColumn)
                     val providerSmsCount = cursor.getInt(smsColumn)
                     Log.d(
@@ -63,6 +78,7 @@ object FeeInfoUtils {
                         return providerSmsCount
                     }
                 }
+                Log.d(TAG, "getAvailableSmsCountForSlot: finished scan, rowCount=$rowCount")
                 Log.d(TAG, "getAvailableSmsCountForSlot: no matching row for slotId=$slotId")
                 null
             }

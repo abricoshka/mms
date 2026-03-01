@@ -7,7 +7,7 @@ import android.widget.ArrayAdapter
 import android.widget.Filter
 import com.goodwy.commons.databinding.ItemContactWithNumberBinding
 import com.goodwy.commons.extensions.*
-import com.goodwy.commons.helpers.SimpleContactsHelper
+import com.goodwy.commons.helpers.AvatarResolver
 import com.goodwy.commons.models.SimpleContact
 import com.android.mms.activities.SimpleActivity
 import com.android.mms.extensions.config
@@ -38,13 +38,15 @@ class AutoCompleteTextViewAdapter(val activity: SimpleActivity, val contacts: Ar
             if (contact != null) {
                 itemContactName.text = contact.name
                 itemContactNumber.text = contact.phoneNumbers.first().normalizedNumber
-                if (contact.isABusinessContact() && contact.photoUri == "") {
-                    val drawable =
-                        SimpleContactsHelper(activity).getColoredCompanyIcon(contact.name)
-                    itemContactImage.setImageDrawable(drawable)
-                } else {
-                    SimpleContactsHelper(context).loadContactImage(contact.photoUri, itemContactImage, contact.name)
-                }
+                itemContactImage.bind(
+                    AvatarResolver.resolve(
+                        contactId = contact.rawId.toLong(),
+                        posterConfig = null,
+                        contactPhotoUri = contact.photoUri.takeIf { it.isNotEmpty() },
+                        contactName = contact.name,
+                        styleConfig = null
+                    )
+                )
             }
             itemContactImage.beGoneIf(!activity.config.showContactThumbnails)
         }

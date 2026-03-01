@@ -238,7 +238,8 @@ class MainActivity : SimpleActivity() {
 
     private fun setupOptionsMenu() {
         binding.apply {
-            mainMenu.toolbar?.inflateMenu(R.menu.menu_main)
+            val toolbar = mainMenu.toolbar ?: return@apply
+            toolbar.inflateMenu(R.menu.action_menu_main)
 
             mainMenu.setOnSearchStateListener(object : BlurAppBarLayout.OnSearchStateListener {
                 override fun onState(state: Int) {
@@ -266,42 +267,55 @@ class MainActivity : SimpleActivity() {
                 }
             })
 
-            mainMenu.toolbar?.setOnMenuItemClickListener { menuItem ->
-                when (menuItem.itemId) {
-                    R.id.search -> {
-                        if (mainMenu.toolbar?.isSearchExpanded != true) {
-                            mainMenu.startSearch()
-                            isSearchOpen = true
-                        }
-                        return@setOnMenuItemClickListener true
-                    }
-                    R.id.select_conversations -> {
-                        if (mainMenu.toolbar?.isSearchExpanded == true) {
-                            mainMenu.toolbar?.collapseSearch()
-                            isSearchOpen = false
-                        }
-                        mainMenu.setExpanded(true)
-                        getOrCreateConversationsAdapter().startActMode()
-                    }
-                    R.id.show_recycle_bin -> launchRecycleBin()
-                    R.id.show_archived -> launchArchivedConversations()
-                    R.id.show_blocked_numbers -> showBlockedNumbers()
-                    R.id.unlock_protected_contacts -> {
-                        if (config.selectedConversationPin > 0) {
-                            closeSecureBox()
-                        } else {
-                            launchSecretBoxForUnlock()
-                        }
-                    }
-                    R.id.settings -> launchSettings()
-                    R.id.about -> launchAbout()
-                    else -> return@setOnMenuItemClickListener false
-                }
-                return@setOnMenuItemClickListener true
+            toolbar.setOnMenuItemClickListener { menuItem ->
+                handleToolbarMenuItemClick(menuItem)
             }
+            toolbar.setPopupForMoreItem(
+                R.id.more,
+                R.menu.menu_main,
+                binding.mainBlurTarget,
+                object : MenuItem.OnMenuItemClickListener {
+                    override fun onMenuItemClick(item: MenuItem): Boolean {
+                        return handleToolbarMenuItemClick(item)
+                    }
+                }
+            )
 
             mainMenu.clearSearch()
         }
+    }
+
+    private fun handleToolbarMenuItemClick(menuItem: MenuItem): Boolean {
+        when (menuItem.itemId) {
+            R.id.search -> {
+                if (binding.mainMenu.toolbar?.isSearchExpanded != true) {
+                    binding.mainMenu.startSearch()
+                    isSearchOpen = true
+                }
+            }
+            R.id.select_conversations -> {
+                if (binding.mainMenu.toolbar?.isSearchExpanded == true) {
+                    binding.mainMenu.toolbar?.collapseSearch()
+                    isSearchOpen = false
+                }
+                binding.mainMenu.setExpanded(true)
+                getOrCreateConversationsAdapter().startActMode()
+            }
+//            R.id.show_recycle_bin -> launchRecycleBin()
+//            R.id.show_archived -> launchArchivedConversations()
+            R.id.show_blocked_numbers -> showBlockedNumbers()
+            R.id.unlock_protected_contacts -> {
+                if (config.selectedConversationPin > 0) {
+                    closeSecureBox()
+                } else {
+                    launchSecretBoxForUnlock()
+                }
+            }
+            R.id.settings -> launchSettings()
+//            R.id.about -> launchAbout()
+            else -> return false
+        }
+        return true
     }
 
     private fun setupSearch(menu: Menu) {
@@ -416,17 +430,6 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun refreshMenuItemsAndTitle() {
-        binding.mainMenu.toolbar?.menu?.apply {
-            findItem(R.id.show_recycle_bin)?.isVisible = config.useRecycleBin
-            findItem(R.id.show_archived)?.isVisible = config.isArchiveAvailable
-            findItem(R.id.about)?.isVisible = false
-            findItem(R.id.unlock_protected_contacts)?.title =
-                if (config.selectedConversationPin > 0) getString(R.string.close_secure_box)
-                else getString(R.string.secure_box)
-            findItem(R.id.show_blocked_numbers)?.title =
-                if (config.showBlockedNumbers) getString(com.goodwy.strings.R.string.hide_blocked_numbers)
-                else getString(com.goodwy.strings.R.string.show_blocked_numbers)
-        }
         binding.mainMenu.setTitle(
             if (config.selectedConversationPin > 0) getString(R.string.secure_box)
             else getString(R.string.messages)
@@ -435,9 +438,6 @@ class MainActivity : SimpleActivity() {
 
     private fun showBlockedNumbers() {
         config.showBlockedNumbers = !config.showBlockedNumbers
-        binding.mainMenu.toolbar?.menu?.findItem(R.id.show_blocked_numbers)?.title =
-            if (config.showBlockedNumbers) getString(com.goodwy.strings.R.string.hide_blocked_numbers)
-            else getString(com.goodwy.strings.R.string.show_blocked_numbers)
 //        runOnUiThread {
 //            getRecentsFragment()?.refreshItems()
 //        }

@@ -34,8 +34,14 @@ import com.goodwy.commons.extensions.setSystemBarsAppearance
 import com.goodwy.commons.extensions.updateMarginWithBase
 import com.goodwy.commons.extensions.updatePaddingWithBase
 import com.goodwy.commons.helpers.OVERFLOW_ICON_VERTICAL
+import com.goodwy.commons.views.CustomToolbar
 import com.goodwy.commons.views.MyAppBarLayout
 import com.goodwy.commons.views.MySearchMenu
+
+/** Implemented by MySearchMenu and BlurAppBarLayout for scroll-based color updates. */
+interface TopBarWithUpdateColors {
+    fun updateColors(background: Int, scrollOffset: Int)
+}
 
 abstract class EdgeToEdgeActivity : AppCompatActivity() {
     open var isSearchBarEnabled = false
@@ -44,7 +50,7 @@ abstract class EdgeToEdgeActivity : AppCompatActivity() {
         get() = true
 
     private var topAppBar: MyAppBarLayout? = null
-    var mySearchMenu: MySearchMenu? = null
+    var mySearchMenu: TopBarWithUpdateColors? = null
     var scrollingView: ScrollingView? = null
     private var materialScrollColorAnimation: ValueAnimator? = null
     var currentScrollY = 0
@@ -126,7 +132,7 @@ abstract class EdgeToEdgeActivity : AppCompatActivity() {
         }
     }
 
-    fun setupSearchMenuScrollListener(scrollingView: ScrollingView?, searchMenu: MySearchMenu, surfaceColor: Boolean = false) {
+    fun setupSearchMenuScrollListener(scrollingView: ScrollingView?, searchMenu: TopBarWithUpdateColors, surfaceColor: Boolean = false) {
         this.scrollingView = scrollingView
         this.mySearchMenu = searchMenu
         if (scrollingView is RecyclerView) {
@@ -237,7 +243,7 @@ abstract class EdgeToEdgeActivity : AppCompatActivity() {
 
         window.setSystemBarsAppearance(colorBackground)
         topAppBar.setBackgroundColor(colorBackground)
-        
+
         // Handle MaterialToolbar
         topAppBar.toolbar?.let { toolbar ->
             toolbar.setTitleTextColor(titleColor)
@@ -257,9 +263,54 @@ abstract class EdgeToEdgeActivity : AppCompatActivity() {
                 }
             }
         }
-        
+
         // Handle CustomToolbar
         topAppBar.customToolbar?.let { toolbar ->
+            toolbar.setTitleTextColor(titleColor)
+            toolbar.navigationIcon?.applyColorFilter(itemColor)
+            val overflowIconRes =
+                if (useOverflowIcon) getOverflowIcon(baseConfig.overflowIcon) else getOverflowIcon(OVERFLOW_ICON_VERTICAL)
+            toolbar.overflowIcon =
+                resources.getColoredDrawableWithColor(this, overflowIconRes, itemColor)
+
+            val menu = toolbar.menu
+            for (i in 0 until menu.size) {
+                try {
+                    menu[i].icon?.setTint(itemColor)
+                } catch (_: Exception) {
+                }
+            }
+            toolbar.invalidateMenu()
+        }
+    }
+
+    /** For app bars that are not MyAppBarLayout (e.g. BlurAppBarLayout).
+     * @param setAppBarViewBackground when false, the app bar view background is not set (keeps transparent).
+     */
+    fun updateTopBarColors(
+        appBarView: View,
+        colorBackground: Int,
+        customToolbar: CustomToolbar?,
+        setAppBarViewBackground: Boolean = true,
+        colorPrimary: Int = getProperPrimaryColor(),
+        topAppBarColorIcon: Boolean = baseConfig.topAppBarColorIcon,
+        topAppBarColorTitle: Boolean = baseConfig.topAppBarColorTitle
+    ) {
+        val getProperBackgroundColor = getProperBackgroundColor()
+        val contrastColor =
+            if (colorBackground == Color.TRANSPARENT) getProperBackgroundColor.getContrastColor()
+            else colorBackground.getContrastColor()
+        val itemColor = if (topAppBarColorIcon) colorPrimary else contrastColor
+        val titleColor = if (topAppBarColorTitle) colorPrimary else contrastColor
+
+        window.setSystemBarsAppearance(colorBackground)
+        if (setAppBarViewBackground) {
+            appBarView.setBackgroundColor(colorBackground)
+        } else {
+            window.statusBarColor = Color.TRANSPARENT
+        }
+
+        customToolbar?.let { toolbar ->
             toolbar.setTitleTextColor(titleColor)
             toolbar.navigationIcon?.applyColorFilter(itemColor)
             val overflowIconRes =

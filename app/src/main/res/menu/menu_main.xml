@@ -4,22 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="AppCompatResource,AlwaysShowAction">
     <item
-        android:id="@+id/search"
-        android:icon="@drawable/ic_cmn_search"
-        android:title="@string/search"
-        android:showAsAction="collapseActionView|always"/>
-    <item
         android:id="@+id/select_conversations"
         android:title="@string/select_conversations"
         android:showAsAction="never" />
-    <item
-        android:id="@+id/show_recycle_bin"
-        android:title="@string/show_the_recycle_bin"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/show_archived"
-        android:showAsAction="never"
-        android:title="@string/show_archived_conversations" />
     <item
         android:id="@+id/show_blocked_numbers"
         android:title="@string/show_blocked_numbers"
@@ -30,12 +17,6 @@
         android:showAsAction="never" />
     <item
         android:id="@+id/settings"
-        android:icon="@drawable/ic_more_horiz"
         android:title="@string/settings"
-        android:showAsAction="never" />
-    <item
-        android:id="@+id/about"
-        android:icon="@drawable/ic_info_vector"
-        android:title="@string/about"
         android:showAsAction="never" />
 </menu>

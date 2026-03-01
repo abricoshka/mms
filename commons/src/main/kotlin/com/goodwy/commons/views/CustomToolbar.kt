@@ -330,9 +330,9 @@ class CustomToolbar @JvmOverloads constructor(
         val queryView = binding.actionBarSearch.searchEditText
         val showClear = text.isNotEmpty() || forceShowSearchClearButton
         queryView.setCompoundDrawablesRelativeWithIntrinsicBounds(
-            R.drawable.ic_cmn_search,
+            com.android.common.R.drawable.ic_cmn_search,
             0,
-            if (showClear) R.drawable.ic_cmn_circle_close_fill else 0,
+            if (showClear) com.android.common.R.drawable.ic_cmn_circle_close_fill else 0,
             0
         )
     }
