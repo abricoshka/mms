@@ -16,8 +16,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
 import android.speech.RecognizerIntent
-import android.telephony.PhoneNumberUtils
-import android.telephony.TelephonyManager
 import android.text.TextUtils
 import android.view.Menu
 import android.view.MenuItem
@@ -772,7 +770,7 @@ class MainActivity : SimpleActivity() {
                     val normalizedTitle = clonedConversation.title.normalizePhoneNumber()
                     val normalizedPhoneNumber = clonedConversation.phoneNumber.normalizePhoneNumber()
                     val updatedConversation = if (normalizedTitle == normalizedPhoneNumber || clonedConversation.title == clonedConversation.phoneNumber) {
-                        val phoneNumberWithoutCountryCode = removeCountryCodeFromPhoneNumber(clonedConversation.phoneNumber)
+                        val phoneNumberWithoutCountryCode = getDisplayNumberWithoutCountryCode(clonedConversation.phoneNumber)
                         clonedConversation.copy(title = phoneNumberWithoutCountryCode)
                     } else {
                         clonedConversation
@@ -842,126 +840,6 @@ class MainActivity : SimpleActivity() {
                 }
             }
         }
-    }
-
-    /**
-     * Removes country code from phone number for display purposes.
-     * Uses device's SIM country code or network country code to determine the country code to remove.
-     */
-    private fun removeCountryCodeFromPhoneNumber(phoneNumber: String): String {
-        try {
-            val normalizedNumber = phoneNumber.normalizePhoneNumber()
-            if (normalizedNumber.isEmpty()) {
-                return phoneNumber
-            }
-
-            // Get country code from SIM or network
-            val telephonyManager = getSystemService(TelephonyManager::class.java)
-            val countryIso = telephonyManager?.simCountryIso?.uppercase(Locale.getDefault())
-                ?: telephonyManager?.networkCountryIso?.uppercase(Locale.getDefault())
-                ?: Locale.getDefault().country
-
-            if (countryIso.isNotEmpty()) {
-                // Get the country calling code for this country
-                val countryCallingCode = getCountryCallingCode(countryIso)
-                if (countryCallingCode != null && normalizedNumber.startsWith(countryCallingCode)) {
-                    // Remove the country calling code
-                    val numberWithoutCountryCode = normalizedNumber.substring(countryCallingCode.length)
-                    // Only return if the remaining number looks valid (at least 7 digits)
-                    if (numberWithoutCountryCode.length >= 7) {
-                        // Try to format the number, otherwise return the number without country code
-                        return PhoneNumberUtils.formatNumber(numberWithoutCountryCode, countryIso) ?: numberWithoutCountryCode
-                    }
-                }
-            }
-
-            // Fallback: Try common country code patterns (1-3 digits)
-            // Common patterns: +1 (US/Canada), +44 (UK), +33 (France), +49 (Germany), etc.
-            val commonCountryCodes = listOf("1", "44", "33", "49", "39", "34", "31", "32", "7", "91", "81", "86", "82", "61", "55", "52", "850")
-            for (code in commonCountryCodes) {
-                if (normalizedNumber.startsWith(code) && normalizedNumber.length > code.length + 6) {
-                    // Likely has country code, remove it
-                    val numberWithoutCode = normalizedNumber.substring(code.length)
-                    // Only return if the remaining number looks valid (at least 7 digits)
-                    if (numberWithoutCode.length >= 7) {
-                        return numberWithoutCode
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            // If anything fails, return original number
-        }
-        return phoneNumber
-    }
-
-    /**
-     * Gets the country calling code for a given ISO country code.
-     * Returns the numeric country code (without +) or null if not found.
-     */
-    private fun getCountryCallingCode(countryIso: String): String? {
-        // Map of common ISO country codes to their calling codes
-        val countryCodeMap = mapOf(
-            "US" to "1", "CA" to "1", // North America
-            "GB" to "44", "UK" to "44", // United Kingdom
-            "FR" to "33", // France
-            "DE" to "49", // Germany
-            "IT" to "39", // Italy
-            "ES" to "34", // Spain
-            "NL" to "31", // Netherlands
-            "BE" to "32", // Belgium
-            "RU" to "7", // Russia
-            "IN" to "91", // India
-            "JP" to "81", // Japan
-            "CN" to "86", // China
-            "KR" to "82", // South Korea
-            "AU" to "61", // Australia
-            "BR" to "55", // Brazil
-            "MX" to "52", // Mexico
-            "AR" to "54", // Argentina
-            "ZA" to "27", // South Africa
-            "TR" to "90", // Turkey
-            "PL" to "48", // Poland
-            "SE" to "46", // Sweden
-            "NO" to "47", // Norway
-            "DK" to "45", // Denmark
-            "FI" to "358", // Finland
-            "GR" to "30", // Greece
-            "PT" to "351", // Portugal
-            "IE" to "353", // Ireland
-            "CH" to "41", // Switzerland
-            "AT" to "43", // Austria
-            "CZ" to "420", // Czech Republic
-            "HU" to "36", // Hungary
-            "RO" to "40", // Romania
-            "BG" to "359", // Bulgaria
-            "HR" to "385", // Croatia
-            "SK" to "421", // Slovakia
-            "SI" to "386", // Slovenia
-            "EE" to "372", // Estonia
-            "LV" to "371", // Latvia
-            "LT" to "370", // Lithuania
-            "UA" to "380", // Ukraine
-            "BY" to "375", // Belarus
-            "KZ" to "7", // Kazakhstan (shares +7 with Russia)
-            "IL" to "972", // Israel
-            "SA" to "966", // Saudi Arabia
-            "AE" to "971", // UAE
-            "EG" to "20", // Egypt
-            "NG" to "234", // Nigeria
-            "KE" to "254", // Kenya
-            "TH" to "66", // Thailand
-            "VN" to "84", // Vietnam
-            "PH" to "63", // Philippines
-            "MY" to "60", // Malaysia
-            "SG" to "65", // Singapore
-            "ID" to "62", // Indonesia
-            "NZ" to "64", // New Zealand
-            "CL" to "56", // Chile
-            "CO" to "57", // Colombia
-            "PE" to "51", // Peru
-            "VE" to "58", // Venezuela
-        )
-        return countryCodeMap[countryIso.uppercase(Locale.getDefault())]
     }
 
     private fun getOrCreateConversationsAdapter(): ConversationsAdapter {

@@ -21,7 +21,9 @@ import android.provider.Telephony.MmsSms
 import android.provider.Telephony.Sms
 import android.provider.Telephony.Threads
 import android.provider.Telephony.ThreadsColumns
+import android.telephony.PhoneNumberUtils
 import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import android.text.TextUtils
 import android.util.Log
 import androidx.core.net.toUri
@@ -62,6 +64,7 @@ import com.android.mms.models.NamePhoto
 import com.android.mms.models.RecycleBinMessage
 import org.xmlpull.v1.XmlPullParserException
 import java.io.FileNotFoundException
+import java.util.Locale
 
 val Context.config: Config
     get() = Config.newInstance(applicationContext)
@@ -829,13 +832,118 @@ fun Context.getThreadContactNames(
         } else {
             val privateContact = privateContacts.firstOrNull { it.doesHavePhoneNumber(number) }
             if (privateContact == null) {
-                names.add(name)
+                names.add(getDisplayNumberWithoutCountryCode(name))
             } else {
                 names.add(privateContact.name)
             }
         }
     }
     return names
+}
+
+fun Context.getDisplayNumberWithoutCountryCode(phoneNumber: String): String {
+    return try {
+        val normalizedNumber = phoneNumber.normalizePhoneNumber()
+        if (normalizedNumber.isEmpty()) {
+            return phoneNumber
+        }
+
+        val telephonyManager = getSystemService(TelephonyManager::class.java)
+        val countryIso = telephonyManager?.simCountryIso?.uppercase(Locale.getDefault())
+            ?: telephonyManager?.networkCountryIso?.uppercase(Locale.getDefault())
+            ?: Locale.getDefault().country
+
+        val countryCallingCode = getCountryCallingCode(countryIso)
+        if (countryCallingCode != null && normalizedNumber.startsWith(countryCallingCode)) {
+            val numberWithoutCountryCode = normalizedNumber.substring(countryCallingCode.length)
+            if (numberWithoutCountryCode.length >= 7) {
+                return PhoneNumberUtils.formatNumber(numberWithoutCountryCode, countryIso)
+                    ?: numberWithoutCountryCode
+            }
+        }
+
+        val commonCountryCodes = listOf(
+            "1", "44", "33", "49", "39", "34", "31", "32",
+            "7", "91", "81", "86", "82", "61", "55", "52", "850"
+        )
+        for (code in commonCountryCodes) {
+            if (normalizedNumber.startsWith(code) && normalizedNumber.length > code.length + 6) {
+                val numberWithoutCode = normalizedNumber.substring(code.length)
+                if (numberWithoutCode.length >= 7) {
+                    return numberWithoutCode
+                }
+            }
+        }
+
+        phoneNumber
+    } catch (_: Exception) {
+        phoneNumber
+    }
+}
+
+private fun getCountryCallingCode(countryIso: String): String? {
+    val countryCodeMap = mapOf(
+        "US" to "1", "CA" to "1",
+        "GB" to "44", "UK" to "44",
+        "FR" to "33",
+        "DE" to "49",
+        "IT" to "39",
+        "ES" to "34",
+        "NL" to "31",
+        "BE" to "32",
+        "RU" to "7",
+        "IN" to "91",
+        "JP" to "81",
+        "CN" to "86",
+        "KR" to "82",
+        "AU" to "61",
+        "BR" to "55",
+        "MX" to "52",
+        "AR" to "54",
+        "ZA" to "27",
+        "TR" to "90",
+        "PL" to "48",
+        "SE" to "46",
+        "NO" to "47",
+        "DK" to "45",
+        "FI" to "358",
+        "GR" to "30",
+        "PT" to "351",
+        "IE" to "353",
+        "CH" to "41",
+        "AT" to "43",
+        "CZ" to "420",
+        "HU" to "36",
+        "RO" to "40",
+        "BG" to "359",
+        "HR" to "385",
+        "SK" to "421",
+        "SI" to "386",
+        "EE" to "372",
+        "LV" to "371",
+        "LT" to "370",
+        "UA" to "380",
+        "BY" to "375",
+        "KZ" to "7",
+        "IL" to "972",
+        "SA" to "966",
+        "AE" to "971",
+        "EG" to "20",
+        "NG" to "234",
+        "KE" to "254",
+        "TH" to "66",
+        "VN" to "84",
+        "PH" to "63",
+        "MY" to "60",
+        "SG" to "65",
+        "ID" to "62",
+        "NZ" to "64",
+        "CL" to "56",
+        "CO" to "57",
+        "PE" to "51",
+        "VE" to "58",
+    )
+    return countryCodeMap[countryIso.uppercase(Locale.getDefault())]
 }
 
 fun Context.getPhoneNumberFromAddressId(canonicalAddressId: Int): String {
