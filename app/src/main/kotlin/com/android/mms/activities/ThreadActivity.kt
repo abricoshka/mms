@@ -223,21 +223,7 @@ class ThreadActivity : SimpleActivity() {
         val toolbar = binding.threadToolbar
         val contrastColor = topBarColor.getContrastColor()
         val itemColor = if (baseConfig.topAppBarColorIcon) getProperPrimaryColor() else contrastColor
-        // Set navigation click listener - handle back press and finish if not handled
-        val navigationClickListener = View.OnClickListener {
-            hideKeyboard()
-            if (!onBackPressedCompat()) {
-                // onBackPressedCompat returned false, so finish the activity
-                finish()
-            }
-        }
-        toolbar.setNavigationOnClickListener(navigationClickListener)
-        val navigationIconDrawable = resources.getColoredDrawableWithColor(this, com.goodwy.commons.R.drawable.ic_chevron_left_vector, itemColor)
-        toolbar.navigationIcon = navigationIconDrawable
-        // Ensure click listener is set after icon
-        toolbar.setNavigationOnClickListener(navigationClickListener)
-        toolbar.setNavigationContentDescription(com.goodwy.commons.R.string.back)
-        // toolbar.setBackgroundColor(topBarColor)
+        setupThreadToolbarNavigation(color = itemColor)
         // Update menu button color
         val overflowIconRes = getOverflowIcon(baseConfig.overflowIcon)
         toolbar.overflowIcon = resources.getColoredDrawableWithColor(this, overflowIconRes, itemColor)
@@ -729,12 +715,31 @@ class ThreadActivity : SimpleActivity() {
                         binding.threadToolbar,
                         setAppBarViewBackground = false
                     )
+                    val contrastColor = color.getContrastColor()
+                    val itemColor = if (baseConfig.topAppBarColorIcon) getProperPrimaryColor() else contrastColor
+                    setupThreadToolbarNavigation(color = itemColor)
                 }
             },
             onScrollStateChanged = { newState ->
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) tryLoadMoreMessages()
             }
         )
+    }
+
+    private fun setupThreadToolbarNavigation(color: Int) {
+        val toolbar = binding.threadToolbar
+        toolbar.navigationIcon = resources.getColoredDrawableWithColor(
+            this,
+            com.android.common.R.drawable.ic_cmn_arrow_left_fill,
+            color
+        )
+        toolbar.setNavigationContentDescription(com.goodwy.commons.R.string.back)
+        toolbar.setNavigationOnClickListener {
+            hideKeyboard()
+            if (!onBackPressedCompat()) {
+                finish()
+            }
+        }
     }
 
     private fun handleItemClick(any: Any) {

@@ -149,6 +149,7 @@ class SettingsActivity : SimpleActivity() {
         initBouncy()
         initBouncyListener()
         setupOptionsMenu()
+        setupSettingsTopAppBar()
 
         if (config.changeColourTopBar) {
             val useSurfaceColor = isDynamicTheme() && !isSystemInDarkMode()
@@ -214,7 +215,11 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsMenu.setTitle(getString(com.goodwy.commons.R.string.settings))
         binding.settingsMenu.toolbar?.let { toolbar ->
             toolbar.navigationIcon =
-                resources.getColoredDrawableWithColor(com.goodwy.commons.R.drawable.ic_chevron_left_vector, topBarColor.getContrastColor())
+                resources.getColoredDrawableWithColor(
+                    this,
+                    com.android.common.R.drawable.ic_cmn_arrow_left_fill,
+                    topBarColor.getContrastColor()
+                )
             toolbar.setNavigationContentDescription(NavigationIcon.Arrow.accessibilityResId)
             toolbar.setNavigationOnClickListener {
                 hideKeyboard()
@@ -228,9 +233,9 @@ class SettingsActivity : SimpleActivity() {
             setAppBarViewBackground = false
         )
         binding.settingsMenu.searchBeVisibleIf(false)
-        // Prevent title from overlapping the back button (icon + small gap)
+        // Keep collapsed title clear of the back button hit area.
         binding.settingsMenu.titleView?.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            marginStart = (8 * resources.displayMetrics.density).toInt()
+            marginStart = (64 * resources.displayMetrics.density).toInt()
         }
     }
 

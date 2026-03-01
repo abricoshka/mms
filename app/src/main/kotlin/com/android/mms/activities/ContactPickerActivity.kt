@@ -17,10 +17,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.AppBarLayout
 import com.goodwy.commons.extensions.getProperBackgroundColor
+import com.goodwy.commons.extensions.getColoredDrawableWithColor
 import com.goodwy.commons.extensions.getProperPrimaryColor
 import com.goodwy.commons.extensions.getProperTextColor
 import com.goodwy.commons.extensions.getSurfaceColor
@@ -147,6 +149,7 @@ class ContactPickerActivity : SimpleActivity() {
         findViewById<BlurTarget>(R.id.blurTarget)?.setBackgroundColor(backgroundColor)
         scrollView?.setBackgroundColor(backgroundColor)
         contactRecyclerView?.setBackgroundColor(backgroundColor)
+        setupTopBarNavigation()
     }
 
     override fun onDestroy() {
@@ -202,6 +205,7 @@ class ContactPickerActivity : SimpleActivity() {
 
     private fun initComponent() {
         blurAppBarLayout?.setTitle(getString(R.string.select_contacts))
+        setupTopBarNavigation()
 
         bottomBarContainer = findViewById(R.id.lyt_action)
         tabBar = findViewById(R.id.confirm_tab)
@@ -325,6 +329,24 @@ class ContactPickerActivity : SimpleActivity() {
             }
         }
         updateFilterBar()
+    }
+
+    private fun setupTopBarNavigation() {
+        blurAppBarLayout?.toolbar?.apply {
+            val textColor = getProperTextColor()
+            navigationIcon = resources.getColoredDrawableWithColor(
+                this@ContactPickerActivity,
+                com.android.common.R.drawable.ic_cmn_arrow_left_fill,
+                textColor
+            )
+            setNavigationContentDescription(com.goodwy.commons.R.string.back)
+            setNavigationOnClickListener {
+                finish()
+            }
+        }
+        blurAppBarLayout?.titleView?.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            marginStart = (64 * resources.displayMetrics.density).toInt()
+        }
     }
 
     private fun updateFilterBar() {

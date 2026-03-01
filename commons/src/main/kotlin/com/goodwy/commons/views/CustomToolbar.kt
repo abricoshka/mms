@@ -116,7 +116,7 @@ class CustomToolbar @JvmOverloads constructor(
             }
         }
 
-        actionBarView.visibility = if ((menu?.size() ?: 0) > 0) View.VISIBLE else View.GONE
+        actionBarView.visibility = if (navigationIconDrawable != null || (menu?.size() ?: 0) > 0) View.VISIBLE else View.GONE
         bindNavigationActionBarClickListener()
         updateTitleMargin(actionBarView.visibility == View.VISIBLE)
     }

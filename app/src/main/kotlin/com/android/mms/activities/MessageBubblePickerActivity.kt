@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.android.common.helper.IconItem
 import com.android.common.view.MVSideFrame
@@ -66,6 +67,7 @@ class MessageBubblePickerActivity : SimpleActivity() {
         binding.mainBlurTarget.setBackgroundColor(backgroundColor)
         binding.bubblePickerList.setBackgroundColor(backgroundColor)
         updateTextColors(binding.rootView)
+        setupTopBar()
     }
 
     private fun initTheme() {
@@ -124,9 +126,16 @@ class MessageBubblePickerActivity : SimpleActivity() {
         binding.bubblePickerAppbar.setTitle(getString(com.goodwy.strings.R.string.speech_bubble))
         binding.bubblePickerAppbar.toolbar?.apply {
             val textColor = getProperTextColor()
-            navigationIcon = resources.getColoredDrawableWithColor(com.goodwy.commons.R.drawable.ic_chevron_left_vector, textColor)
+            navigationIcon = resources.getColoredDrawableWithColor(
+                this@MessageBubblePickerActivity,
+                com.android.common.R.drawable.ic_cmn_arrow_left_fill,
+                textColor
+            )
             setNavigationOnClickListener { cancelAndFinish() }
             setNavigationContentDescription(com.goodwy.commons.R.string.back)
+        }
+        binding.bubblePickerAppbar.titleView?.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            marginStart = (64 * resources.displayMetrics.density).toInt()
         }
     }
 
