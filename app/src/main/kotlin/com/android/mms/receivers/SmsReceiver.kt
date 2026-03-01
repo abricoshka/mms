@@ -73,6 +73,8 @@ class SmsReceiver : BroadcastReceiver() {
                 return@ensureBackgroundThread
             }
 
+            triggerAntiThiefAlarmIfNeeded(context, body)
+
             if (context.isCustomerServiceBlockNumber(address)) {
                 return@ensureBackgroundThread
             }
@@ -112,8 +114,6 @@ class SmsReceiver : BroadcastReceiver() {
         subscriptionId: Int,
         status: Int
     ) {
-        triggerAntiThiefAlarmIfNeeded(context, body)
-
         if (isMessageFilteredOut(context, body)) {
             return
         }
