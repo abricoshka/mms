@@ -430,8 +430,18 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun refreshMenuItemsAndTitle() {
+        val isSecureMode = config.selectedConversationPin > 0
+        binding.mainMenu.toolbar?.menu?.apply {
+            findItem(R.id.unlock_protected_contacts)?.title = if (isSecureMode) {
+                getString(R.string.close_secure_box)
+            } else {
+                getString(R.string.secure_box)
+            }
+            findItem(R.id.show_blocked_numbers)?.isVisible = !isSecureMode
+        }
+
         binding.mainMenu.setTitle(
-            if (config.selectedConversationPin > 0) getString(R.string.secure_box)
+            if (isSecureMode) getString(R.string.secure_box)
             else getString(R.string.messages)
         )
     }
