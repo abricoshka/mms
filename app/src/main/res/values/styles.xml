@@ -7,6 +7,10 @@
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
+    <style name="NewConversationToolbarTitleTextStyle" parent="AppTheme.ActionBar.TitleTextStyle">
+        <item name="android:textSize">@dimen/tx_cardview_big_title</item>
+    </style>
+
     <style name="roundedImageView" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/normal_margin</item>

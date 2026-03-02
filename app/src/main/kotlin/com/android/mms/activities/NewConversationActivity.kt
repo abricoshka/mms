@@ -17,7 +17,6 @@ import android.telephony.SmsMessage
 import android.telephony.SubscriptionInfo
 import android.text.TextUtils
 import android.util.Log
-import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager

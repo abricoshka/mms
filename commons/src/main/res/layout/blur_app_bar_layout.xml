@@ -30,9 +30,9 @@
                 android:layout_gravity="center|start"
                 android:gravity="center|start"
                 android:layout_marginStart="@dimen/tx_top_bar_margin_left"
-                android:layout_marginBottom="8dp"
+                android:layout_marginBottom="12dp"
                 android:textColor="@color/tx_title_text"
-                android:textSize="@dimen/tx_bigger_text_size" />
+                android:textSize="@dimen/tx_cardview_big_title" />
         </LinearLayout>
 
         <com.goodwy.commons.views.CustomToolbar
