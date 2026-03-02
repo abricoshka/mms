@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -246,25 +247,25 @@ class SmsReceiver : BroadcastReceiver() {
             setType(RingtoneManager.TYPE_ALARM)
         }
 
-        val oggRingtones = ArrayList<Int>()
+        val alarmRingtoneUris = ArrayList<Uri>()
         ringtoneManager.cursor?.use { cursor ->
             var count = 0
             while (cursor.moveToNext() && count < 5) {
-                oggRingtones.add(cursor.position)
+                ringtoneManager.getRingtoneUri(cursor.position)?.let { alarmRingtoneUris.add(it) }
                 count++
             }
         }
-        Log.d(TAG, "triggerAntiThiefAlarmIfNeeded: availableRingtones=${oggRingtones.size}")
+        Log.d(TAG, "triggerAntiThiefAlarmIfNeeded: availableRingtones=${alarmRingtoneUris.size}")
 
-        if (oggRingtones.isEmpty()) {
+        if (alarmRingtoneUris.isEmpty()) {
             Log.d(TAG, "triggerAntiThiefAlarmIfNeeded: skipped because no alarm ringtones are available")
             return
         }
 
         val which = Settings.System.getInt(contentResolver, "persist.tx.thief_mode.setting.alarm.ringtone", 2)
-        val safeIndex = which.coerceIn(0, oggRingtones.lastIndex)
+        val safeIndex = which.coerceIn(0, alarmRingtoneUris.lastIndex)
         Log.d(TAG, "triggerAntiThiefAlarmIfNeeded: requestedRingtoneIndex=$which safeIndex=$safeIndex")
-        val ringtoneUri = ringtoneManager.getRingtoneUri(oggRingtones[safeIndex]) ?: return
+        val ringtoneUri = alarmRingtoneUris[safeIndex]
         Log.d(TAG, "triggerAntiThiefAlarmIfNeeded: ringtoneUri=$ringtoneUri")
 
         antiThiefPlayer?.let { existing ->

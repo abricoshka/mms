@@ -281,7 +281,7 @@ open class BaseConfig(val context: Context) {
         set(needRestart) = prefs.edit { putBoolean(NEED_RESTART, needRestart) }
 
     var useDividers: Boolean
-        get() = prefs.getBoolean(USE_DIVIDERS, false)
+        get() = prefs.getBoolean(USE_DIVIDERS, true)
         set(useDividers) = prefs.edit { putBoolean(USE_DIVIDERS, useDividers) }
 
     var useColoredContacts: Boolean
