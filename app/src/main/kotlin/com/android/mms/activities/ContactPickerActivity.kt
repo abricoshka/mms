@@ -246,10 +246,12 @@ class ContactPickerActivity : SimpleActivity() {
             override fun onState(state: Int) {
                 when (state) {
                     MSearchView.SEARCH_START -> {
+                        hideTopBarNavigation()
                         contactRecyclerView?.isNestedScrollingEnabled = false
                         contactRecyclerView?.scrollToPosition((contactAdapter?.itemCount ?: 1) - 1)
                     }
                     MSearchView.SEARCH_END -> {
+                        setupTopBarNavigation()
                         contactRecyclerView?.isNestedScrollingEnabled = true
                     }
                 }
@@ -346,6 +348,13 @@ class ContactPickerActivity : SimpleActivity() {
         }
         blurAppBarLayout?.titleView?.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             marginStart = (64 * resources.displayMetrics.density).toInt()
+        }
+    }
+
+    private fun hideTopBarNavigation() {
+        blurAppBarLayout?.toolbar?.apply {
+            navigationIcon = null
+            setNavigationOnClickListener(null)
         }
     }
 
