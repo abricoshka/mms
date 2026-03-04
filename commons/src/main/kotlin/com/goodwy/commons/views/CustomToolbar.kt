@@ -116,7 +116,9 @@ class CustomToolbar @JvmOverloads constructor(
             }
         }
 
-        actionBarView.visibility = if (navigationIconDrawable != null || (menu?.size() ?: 0) > 0) View.VISIBLE else View.GONE
+        // Show nav icon area when we have a drawable or when the menu has items (default back)
+        val showNav = (menu?.size() ?: 0) > 0 || navigationIconDrawable != null
+        actionBarView.visibility = if (showNav) View.VISIBLE else View.GONE
         bindNavigationActionBarClickListener()
         updateTitleMargin(actionBarView.visibility == View.VISIBLE)
     }
@@ -243,6 +245,18 @@ class CustomToolbar @JvmOverloads constructor(
             }
 
             typedArray.recycle()
+        }
+
+        // Read navigationIcon from XML (e.g. app:navigationIcon) and apply after layout is ready
+        attrs?.let {
+            runCatching {
+                val toolbarAttrs = context.obtainStyledAttributes(it, androidx.appcompat.R.styleable.Toolbar, 0, 0)
+                val navIconDrawable = toolbarAttrs.getDrawable(androidx.appcompat.R.styleable.Toolbar_navigationIcon)
+                toolbarAttrs.recycle()
+                if (navIconDrawable != null) {
+                    post { navigationIcon = navIconDrawable }
+                }
+            }
         }
     }
 
@@ -556,6 +570,10 @@ class CustomToolbar @JvmOverloads constructor(
     }
 
     fun getActionBar() = binding?.actionBar
+    fun setActionBarVisibility(visible: Boolean) {
+        val toolbarBinding = binding ?: return
+        toolbarBinding.actionBar.visibility = if (visible) View.VISIBLE else View.GONE
+    }
 
     private fun getLiveActionBarMenu(): Menu? {
         val actionBar = binding?.actionBar ?: return null

@@ -583,6 +583,7 @@ abstract class MyRecyclerViewListAdapter<T>(
 
         fun viewLongClicked() {
             val currentPosition = adapterPosition - positionOffset
+            if (!getIsItemSelectable(currentPosition)) return
             if (!actModeCallback.isSelectable) {
                 activity.startActionMode(actModeCallback)
             }

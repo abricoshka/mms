@@ -267,6 +267,34 @@ fun String.getAvailableStorageB(): Long {
 // remove diacritics, for example č -> c
 fun String.normalizeString() = Normalizer.normalize(this, Normalizer.Form.NFD).replace(normalizeRegex, "")
 
+private val KOREAN_CHOSEONG_COMPAT = charArrayOf(
+    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ',
+    'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+)
+
+private val KOREAN_COMPAT_CONSONANTS = KOREAN_CHOSEONG_COMPAT.toSet()
+
+/**
+ * For a Hangul character, returns a normalized leading consonant (compatibility Jamo: ㄱ..ㅎ).
+ * - Syllable (e.g. 구) -> ㄱ
+ * - Choseong Jamo (ᄀ..ᄒ) -> ㄱ..ㅎ
+ * - Compatibility consonant (ㄱ..ㅎ) -> itself
+ */
+fun Char.toKoreanChoseongOrNull(): Char? {
+    val code = code
+    return when {
+        code in 0xAC00..0xD7A3 -> { // Hangul syllable range (가–힣)
+            val choseongIndex = (code - 0xAC00) / 588
+            KOREAN_CHOSEONG_COMPAT[choseongIndex]
+        }
+        code in 0x1100..0x1112 -> { // Hangul choseong Jamo range (ᄀ–ᄒ)
+            KOREAN_CHOSEONG_COMPAT[code - 0x1100]
+        }
+        this in KOREAN_COMPAT_CONSONANTS -> this
+        else -> null
+    }
+}
+
 // checks if string is a phone number
 fun String.isPhoneNumber(): Boolean {
     return this.matches("^[0-9+\\-\\)\\( *#]+\$".toRegex())

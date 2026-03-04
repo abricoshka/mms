@@ -311,6 +311,9 @@ data class Contact(
         val bubbleText = getBubbleText()
         val emoji = bubbleText.take(2)
         val character = if (emoji.isEmoji()) emoji else if (bubbleText.isNotEmpty()) bubbleText.substring(0, 1) else ""
+        if (character.length == 1) {
+            character[0].toKoreanChoseongOrNull()?.let { return it.toString() }
+        }
         return character.uppercase(Locale.getDefault()).normalizeString()
     }
 

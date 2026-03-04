@@ -286,16 +286,16 @@ fun Context.getVisibleContactSources(): ArrayList<String> {
 
 fun Context.getAllContactSources(): ArrayList<ContactSource> {
     val allSources = ContactsHelper(this).getDeviceContactSources()
-    // Return phone storage and SIM card contacts
+    // Return phone storage and SIM card contacts.
+    // Use isBlank() instead of isEmpty() because the protection mechanism writes a single
+    // space (' ') for account name/type instead of an empty string.
     val phoneAndSimSources = allSources.filter { source ->
         val nameLower = source.name.lowercase(Locale.getDefault())
         val typeLower = source.type.lowercase(Locale.getDefault())
         
-        // Phone storage: empty account name/type or "phone" account
-        val isPhoneStorage = (source.name.isEmpty() && source.type.isEmpty()) ||
-            (nameLower == "phone" && source.type.isEmpty())
+        val isPhoneStorage = (source.name.isBlank() && source.type.isBlank()) ||
+            (nameLower.trim() == "phone" && source.type.isBlank())
         
-        // SIM card: account type contains "sim" or "icc"
         val isSimCard = typeLower.contains("sim") || typeLower.contains("icc")
         
         isPhoneStorage || isSimCard

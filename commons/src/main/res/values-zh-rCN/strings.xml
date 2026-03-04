@@ -676,6 +676,8 @@
     <string name="importing_failed">导入失败</string>
     <string name="exporting_failed">导出失败</string>
     <string name="importing_some_entries_failed">部分条目导入失败</string>
+    <string name="contacts_imported_count">已导入 %1$d 个联系人</string>
+    <string name="contacts_imported_count_with_failures">已导入 %1$d 个联系人（%2$d 个失败）</string>
     <string name="exporting_some_entries_failed">部分条目导出失败</string>
     <string name="no_entries_for_importing">没有找到要导入的条目</string>
     <string name="no_new_entries_for_importing">没有找到用于导入的新条目</string>

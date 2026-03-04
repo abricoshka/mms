@@ -438,6 +438,8 @@
     <string name="importing_failed">불러들이기 실패</string>
     <string name="exporting_failed">내보내기 실패</string>
     <string name="importing_some_entries_failed">일부 항목 불러들이기에 실패함</string>
+    <string name="contacts_imported_count">%1$d개 주소 가져옴</string>
+    <string name="contacts_imported_count_with_failures">%1$d개 주소 가져옴 (%2$d 실패)</string>
     <string name="exporting_some_entries_failed">일부 항목 내보내기에 실패함</string>
     <string name="no_entries_for_importing">가져올 항복을 찾을수 없음</string>
     <string name="no_entries_for_exporting">내보낼 항목을 찾을수 없음</string>

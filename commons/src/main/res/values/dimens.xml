@@ -75,6 +75,7 @@
     <dimen name="normal_text_size">14sp</dimen>
     <dimen name="medium_text_size">15sp</dimen>
     <dimen name="bigger_text_size">16sp</dimen>
+    <dimen name="blocking_progress_line_height">24dp</dimen>
     <dimen name="middle_text_size">17sp</dimen>
     <dimen name="big_text_size">18sp</dimen>
     <dimen name="extra_big_text_size">19sp</dimen>

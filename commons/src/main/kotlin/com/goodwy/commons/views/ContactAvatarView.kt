@@ -115,21 +115,16 @@ class ContactAvatarView @JvmOverloads constructor(
         // Clear previous image request to prevent memory leaks
         clearImageRequest()
 
-        val monogramSource = when (source) {
-            is AvatarSource.Monogram -> source
-            is AvatarSource.Photo -> source.fallbackMonogram ?: AvatarSource.Monogram(
-                initials = "?",
-                gradientColors = MonogramGenerator.generateGradientColors(source.photoUri),
-                drawableIndex = kotlin.math.abs(source.photoUri.hashCode()) % 27
-            )
-            is AvatarSource.Poster -> AvatarSource.Monogram(
-                initials = "?",
-                gradientColors = MonogramGenerator.generateGradientColors(source.subjectUri),
-                drawableIndex = kotlin.math.abs(source.subjectUri.hashCode()) % 27
+        when (source) {
+            is AvatarSource.Poster -> bindPoster(source.subjectUri)
+            is AvatarSource.Photo -> bindPhoto(source)
+            is AvatarSource.Drawable -> bindDrawable(source.drawableResId, source.tintColor, source.backgroundColor)
+            is AvatarSource.Monogram -> bindMonogram(
+                source.initials,
+                source.gradientColors,
+                source.drawableIndex
             )
         }
-
-        bindMonogram(monogramSource.initials, monogramSource.gradientColors, monogramSource.drawableIndex)
     }
 
     /**
@@ -267,6 +262,31 @@ class ContactAvatarView @JvmOverloads constructor(
                 avatarImage.setImageDrawable(null)
             }
         }
+    }
+
+    /**
+     * Binds Drawable avatar source (e.g. special rows: My Info, Service numbers, Company numbers).
+     * Shows a drawable icon with tint on a solid background.
+     */
+    private fun bindDrawable(drawableResId: Int, tintColor: Int, backgroundColor: Int) {
+        avatarImage.isVisible = true
+        avatarInitials.isVisible = false
+        background = GradientDrawable().apply {
+            setColor(backgroundColor)
+            shape = GradientDrawable.OVAL
+        }
+        avatarImage.background = null
+        avatarImage.layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER
+        )
+        avatarImage.scaleType = ImageView.ScaleType.FIT_CENTER
+        val size = minOf(width, height).takeIf { it > 0 } ?: (resources.displayMetrics.density * 48f).toInt()
+        val inset = (size * 0.2f).toInt().coerceAtLeast(4)
+        avatarImage.setPadding(inset, inset, inset, inset)
+        avatarImage.setImageResource(drawableResId)
+        avatarImage.imageTintList = ColorStateList.valueOf(tintColor)
     }
 
     /**

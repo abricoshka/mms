@@ -457,10 +457,13 @@ class SimpleContactsHelper(val context: Context) {
             textAlign = Paint.Align.CENTER
             textSize = wantedTextSize
             style = Paint.Style.FILL
+            // Disable font padding for better centering
             isFakeBoldText = false
         }
 
+        // Perfect centering: center horizontally and vertically
         val xPos = canvas.width / 2f
+        // Use precise vertical centering accounting for text metrics
         val fontMetrics = textPaint.fontMetrics
         val yPos = canvas.height / 2f - (fontMetrics.ascent + fontMetrics.descent) / 2f
         canvas.drawText(letter, xPos, yPos, textPaint)

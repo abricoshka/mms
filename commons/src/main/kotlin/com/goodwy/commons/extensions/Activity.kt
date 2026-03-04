@@ -1897,75 +1897,81 @@ fun Activity.isSpeechToTextAvailable(): Boolean {
     return activities.isNotEmpty()
 }
 
-private val blockingOverlayViews = WeakHashMap<Activity, View>()
+private data class BlockingProgressState(
+    val dialog: Dialog,
+    val textViewLine1: TextView,
+    val textViewLine2: TextView
+)
 
-fun Activity.showBlockingSpinnerOverlay(message: String = "") {
+private val blockingProgressDialogs = WeakHashMap<Activity, BlockingProgressState>()
+
+fun Activity.showBlockingSpinnerOverlay(message: String = "", onCancel: (() -> Unit)? = null) {
     if (isFinishing || isDestroyed) return
-    
+
     runOnUiThread {
-        if (blockingOverlayViews.containsKey(this@showBlockingSpinnerOverlay)) {
+        if (blockingProgressDialogs.containsKey(this@showBlockingSpinnerOverlay)) {
             return@runOnUiThread
         }
-        
-        val rootView = window.decorView.rootView as? ViewGroup ?: return@runOnUiThread
+
         val overlayColor = getProperBackgroundColor()
         val textColor = getProperTextColor()
-        
-        val overlay = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            setBackgroundColor(overlayColor.adjustAlpha(0.9f))
-            isClickable = true
-            isFocusable = true
-            setOnTouchListener { _, _ -> true } // Block all touch events
-        }
-        
-        val container = FrameLayout(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                gravity = android.view.Gravity.CENTER
+        val primaryColor = getProperPrimaryColor()
+
+        val dialog = Dialog(this, android.R.style.Theme_Dialog).apply {
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+            setCancelable(false)
+            setContentView(R.layout.dialog_blocking_progress)
+            window?.apply {
+                setBackgroundDrawableResource(android.R.color.transparent)
+                addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                attributes?.dimAmount = 0.6f
+                setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
             }
         }
-        
-        val progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleLarge).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
+
+        val container = dialog.findViewById<View>(R.id.blocking_progress_container)
+        val textViewLine1 = dialog.findViewById<TextView>(R.id.blocking_progress_message_line1)
+        val textViewLine2 = dialog.findViewById<TextView>(R.id.blocking_progress_message_line2)
+        val cancelButton = dialog.findViewById<android.view.View>(R.id.blocking_progress_cancel)
+        container?.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(overlayColor)
+            cornerRadius = resources.getDimension(R.dimen.dialog_corner_radius)
         }
-        container.addView(progressBar)
-        
-        if (message.isNotEmpty()) {
-            val textView = TextView(this).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    topMargin = resources.getDimensionPixelSize(R.dimen.activity_margin)
-                }
-                text = message
-                setTextColor(textColor)
-                textSize = 16f
-                gravity = android.view.Gravity.CENTER
+        textViewLine1.setTextColor(textColor)
+        textViewLine2.setTextColor(textColor)
+        textViewLine1.text = message.ifEmpty { getString(R.string.importing) }
+        textViewLine2.text = ""
+
+        if (onCancel != null) {
+            cancelButton.visibility = android.view.View.VISIBLE
+            if (cancelButton is android.widget.TextView) {
+                cancelButton.setTextColor(primaryColor)
             }
-            container.addView(textView)
+            cancelButton.setOnClickListener {
+                onCancel()
+                hideBlockingSpinnerOverlay()
+            }
+        } else {
+            cancelButton.visibility = android.view.View.GONE
         }
-        
-        overlay.addView(container)
-        rootView.addView(overlay)
-        blockingOverlayViews[this@showBlockingSpinnerOverlay] = overlay
+
+        dialog.show()
+        blockingProgressDialogs[this@showBlockingSpinnerOverlay] = BlockingProgressState(dialog, textViewLine1, textViewLine2)
+    }
+}
+
+fun Activity.updateBlockingSpinnerOverlay(line1: String, line2: String) {
+    runOnUiThread {
+        val state = blockingProgressDialogs[this@updateBlockingSpinnerOverlay] ?: return@runOnUiThread
+        state.textViewLine1.text = line1
+        state.textViewLine2.text = line2
     }
 }
 
 fun Activity.hideBlockingSpinnerOverlay() {
     runOnUiThread {
-        blockingOverlayViews.remove(this@hideBlockingSpinnerOverlay)?.let { overlay ->
-            val rootView = window.decorView.rootView as? ViewGroup
-            rootView?.removeView(overlay)
+        blockingProgressDialogs.remove(this@hideBlockingSpinnerOverlay)?.let { state ->
+            state.dialog.dismiss()
         }
     }
 }

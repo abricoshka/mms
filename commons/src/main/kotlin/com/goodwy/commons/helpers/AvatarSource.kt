@@ -31,6 +31,19 @@ sealed class AvatarSource {
     ) : AvatarSource()
 
     /**
+     * Avatar source from a drawable resource (e.g. for special rows: My Info, Service numbers, Company numbers).
+     *
+     * @property drawableResId The drawable resource id for the icon
+     * @property tintColor The color to tint the drawable (e.g. text color)
+     * @property backgroundColor The background color for the avatar circle
+     */
+    data class Drawable(
+        val drawableResId: Int,
+        val tintColor: Int,
+        val backgroundColor: Int
+    ) : AvatarSource()
+
+    /**
      * Avatar source from monogram (initials with gradient background).
      * Used as fallback when no photo or poster subject mask is available.
      * 

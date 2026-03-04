@@ -6,6 +6,7 @@ import android.content.*
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.ContactsContract
 import android.provider.ContactsContract.*
 import android.provider.MediaStore
 import android.text.TextUtils
@@ -87,8 +88,8 @@ class ContactsHelper(val context: Context) {
                     }
                 }
                 
-                // Group by name + first phone + first email so contacts with the same
-                // display name but different numbers/emails stay separate.
+                // Group by name + first phone + first email so that contacts with the same display name
+                // but different numbers/emails (e.g. imported list with "Samsung Electronics #1", "#2"...) stay separate
                 val groupedByName = HashMap<String, ArrayList<Contact>>()
                 for (contact in contactsToMerge) {
                     val nameKey = contact.getNameToDisplay().lowercase(Locale.getDefault())
@@ -143,96 +144,6 @@ class ContactsHelper(val context: Context) {
         }
     }
 
-    // region Protected contacts (PIN-secured) – each contact has its own custom PIN
-
-    /**
-     * Unlocks one protected contact with its **own** PIN. After a successful unlock,
-     * that contact appears in [getContacts] results (together with normal contacts and
-     * any other contacts already unlocked in this session). Call [lockProtectedContacts]
-     * when leaving the secured screen or when the app goes to background.
-     * @param rawContactId Raw contact ID ([Contact.id])
-     * @param pin The 4-digit (or custom) PIN that was set when locking this contact
-     * @return true if the PIN was correct and this contact is now unlocked
-     */
-    fun unlockProtectedContact(rawContactId: Long, pin: String): Boolean {
-        return try {
-            val extras = android.os.Bundle().apply {
-                putLong("raw_contact_id", rawContactId)
-                putString("pin", pin)
-            }
-            val result = context.contentResolver.call(android.provider.ContactsContract.AUTHORITY_URI, "unlock", null, extras)
-            result != null && result.getBoolean("unlocked", false)
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Clears unlock state for this app. After this, only normal contacts appear in queries
-     * until the user unlocks individual protected contacts again. Call when leaving the
-     * secured-contacts screen or when the app goes to background.
-     */
-    fun lockProtectedContacts() {
-        try {
-            ContactProtectionHelper.lock(context)
-        } catch (_: Exception) { }
-    }
-
-    /**
-     * Unlocks all protected contacts whose stored PIN matches [pin].
-     * Useful before loading secure contact/call history screens.
-     * @return number of contacts unlocked for this app UID
-     */
-    fun unlockAllProtectedContactsWithPin(pin: String): Int {
-        return try {
-            ContactProtectionHelper.unlockAllWithPin(context, pin).count
-        } catch (_: Exception) {
-            0
-        }
-    }
-
-    /**
-     * Marks a raw contact as protected or normal. When setting protected, pass the
-     * **custom PIN** (e.g. 4 digits) for this contact. Requires WRITE_CONTACTS.
-     * @param rawContactId Raw contact ID ([Contact.id])
-     * @param protected true = lock with PIN; false = visible to everyone
-     * @param pin When [protected] is true, the custom PIN for this contact (e.g. 4 digits)
-     * @return true if the provider updated the contact
-     */
-    fun setContactProtected(rawContactId: Long, protected: Boolean, pin: String? = null): Boolean {
-        return try {
-            val rawId = rawContactId.toInt()
-            if (protected) {
-                if (pin.isNullOrBlank()) return false
-                ContactProtectionHelper.protectContact(context, rawId, pin)
-            } else {
-                ContactProtectionHelper.unprotectContact(context, rawId)
-            }
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Locks a normal contact with a **custom** PIN (e.g. 4 digits). The user chooses this
-     * PIN when locking; the same PIN is required to unlock this contact later via
-     * [unlockProtectedContact]. Use [Contact.id] as the raw contact ID. Requires WRITE_CONTACTS.
-     * @param rawContactId Raw contact ID
-     * @param pin Custom PIN for this contact (e.g. 4 digits)
-     * @return true if the contact was successfully marked as protected with this PIN
-     */
-    fun lockContactWithPin(rawContactId: Long, pin: String): Boolean =
-        setContactProtected(rawContactId, true, pin)
-
-    /**
-     * Locks a normal contact with a custom PIN. Convenience overload using [Contact.id].
-     */
-    fun lockContactWithPin(contact: Contact, pin: String): Boolean =
-        lockContactWithPin(contact.id.toLong(), pin)
-
-    // endregion
-
     private fun getContentResolverAccounts(): HashSet<ContactSource> {
         val sources = HashSet<ContactSource>()
         arrayOf(Groups.CONTENT_URI, Settings.CONTENT_URI, RawContacts.CONTENT_URI).forEach {
@@ -267,7 +178,8 @@ class ContactsHelper(val context: Context) {
         val typeLower = accountType.lowercase(Locale.getDefault())
         
         // Phone storage: blank account name/type or "phone" account.
-        // Some providers persist a single space instead of an empty value.
+        // Use isBlank() instead of isEmpty() because the protection mechanism stores
+        // a single space (' ') for account name/type rather than an empty string.
         val isPhoneStorage = (accountName.isBlank() && accountType.isBlank()) ||
             (nameLower.trim() == "phone" && accountType.isBlank())
         
@@ -283,24 +195,55 @@ class ContactsHelper(val context: Context) {
             return
         }
 
+        // Background-thread probe: compare against the main-thread probe in MainActivity to
+        // detect whether the provider's unlock state is thread-scoped vs UID/process-scoped.
+        val bgProbe = context.contentResolver.query(
+            ContactsContract.Contacts.CONTENT_URI,
+            arrayOf(ContactsContract.Contacts._ID),
+            null, null, null
+        )
+        android.util.Log.d("ContactProtection", "getDeviceContacts probe Contacts.CONTENT_URI: count=${bgProbe?.count ?: -1} [BG THREAD tid=${Thread.currentThread().id}]")
+        bgProbe?.close()
+
+        val bgProbeData = context.contentResolver.query(
+            Data.CONTENT_URI,
+            arrayOf(Data.RAW_CONTACT_ID, RawContacts.ACCOUNT_TYPE, RawContacts.ACCOUNT_NAME, Data.MIMETYPE),
+            "${Data.MIMETYPE} = ?",
+            arrayOf(CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
+            null
+        )
+        android.util.Log.d("ContactProtection", "getDeviceContacts probe Data.CONTENT_URI (StructuredName): count=${bgProbeData?.count ?: -1} [BG THREAD tid=${Thread.currentThread().id}]")
+        bgProbeData?.close()
+
         val ignoredSources = ignoredContactSources ?: context.baseConfig.ignoredContactSources
         val uri = Data.CONTENT_URI
         val projection = getContactProjection()
 
-        // Re-establish unlock on this Binder connection when secure mode is active.
-        ContactProtectionHelper.ensureUnlockedForThread(context)
+        // Re-establish the unlock state on this thread's Binder connection. The provider
+        // tracks unlock state per connection; the main thread's unlock does not carry over
+        // to this background thread automatically.
+        com.goodwy.commons.helpers.ContactProtectionHelper.ensureUnlockedForThread(context)
 
         arrayOf(CommonDataKinds.Organization.CONTENT_ITEM_TYPE, CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE).forEach { mimetype ->
             val selection = "${Data.MIMETYPE} = ?"
             val selectionArgs = arrayOf(mimetype)
             val sortOrder = getSortString()
 
+            var rowsSeen = 0
+            var rowsAccepted = 0
+            var rowsRejectedByAccount = 0
+            var rowsRejectedByIgnored = 0
+
             context.queryCursor(uri, projection, selection, selectionArgs, sortOrder, true) { cursor ->
+                rowsSeen++
                 val accountName = cursor.getStringValue(RawContacts.ACCOUNT_NAME) ?: ""
                 val accountType = cursor.getStringValue(RawContacts.ACCOUNT_TYPE) ?: ""
 
                 // Load phone storage and SIM card contacts
                 if (!isSimOrPhoneStorage(accountName, accountType)) {
+                    rowsRejectedByAccount++
+                    val rawId = cursor.getIntValue(Data.RAW_CONTACT_ID)
+                    android.util.Log.d("ContactProtection", "getDeviceContacts[$mimetype] SKIP rawId=$rawId acctType='$accountType' acctName='$accountName' (not phone/SIM)")
                     return@queryCursor
                 }
                 // Optimize: Cache account identifier to avoid repeated string concatenation
@@ -310,9 +253,11 @@ class ContactsHelper(val context: Context) {
                     "$accountName:$accountType"
                 }
                 if (ignoredSources.contains(accountIdentifier)) {
+                    rowsRejectedByIgnored++
                     return@queryCursor
                 }
 
+                rowsAccepted++
                 val id = cursor.getIntValue(Data.RAW_CONTACT_ID)
                 
                 // Check if contact already exists (e.g., from Organization entry when processing StructuredName, or vice versa)
@@ -393,24 +338,31 @@ class ContactsHelper(val context: Context) {
 
                 contacts.put(id, contact)
             }
+            android.util.Log.d("ContactProtection", "getDeviceContacts[$mimetype] summary: rowsSeen=$rowsSeen accepted=$rowsAccepted rejectedByAccount=$rowsRejectedByAccount rejectedByIgnored=$rowsRejectedByIgnored contacts.size=${contacts.size}")
         }
 
-        // Data.CONTENT_URI can still hide protected rows; supplement from Contacts/RawContacts.
+        // The provider's unlock_all_with_pin lifts protection on the contacts/raw_contacts views
+        // but NOT on Data.CONTENT_URI — protected contacts' data rows remain hidden even after
+        // unlock. Load any unlocked contacts missed by the Data pass using Contacts.CONTENT_URI,
+        // which does respect the unlock state.
         if (ContactProtectionHelper.isUnlockedInSession()) {
             val unlockedIds = ContactProtectionHelper.getUnlockedRawContactIds()
+
+            // Secure mode: show ONLY unlocked contacts
             contacts.clear()
 
-            if (unlockedIds != null && unlockedIds.isNotEmpty()) {
+            if (unlockedIds == null || unlockedIds.isEmpty()) {
+                android.util.Log.d("ContactProtection", "supplementary load: unlockedIds empty -> empty list")
+            } else {
                 val idsClause = unlockedIds.joinToString(",")
+
+                // Step 1 — raw_id → (contact_id, account_name)
                 val rawIdToContactId = mutableMapOf<Int, Int>()
                 val rawIdToAccountName = mutableMapOf<Int, String>()
                 context.queryCursor(
                     RawContacts.CONTENT_URI,
                     arrayOf(RawContacts._ID, RawContacts.CONTACT_ID, RawContacts.ACCOUNT_NAME),
-                    "${RawContacts._ID} IN ($idsClause)",
-                    null,
-                    null,
-                    true
+                    "${RawContacts._ID} IN ($idsClause)", null, null, true
                 ) { cursor ->
                     val rawId = cursor.getIntValue(RawContacts._ID)
                     rawIdToContactId[rawId] = cursor.getIntValue(RawContacts.CONTACT_ID)
@@ -420,28 +372,19 @@ class ContactsHelper(val context: Context) {
                 val contactIdSet = rawIdToContactId.values.toSet()
                 if (contactIdSet.isNotEmpty()) {
                     data class ContactInfo(
-                        val displayName: String,
-                        val photoUri: String,
-                        val thumbnailUri: String,
-                        val starred: Int,
-                        val ringtone: String?
+                        val displayName: String, val photoUri: String,
+                        val thumbnailUri: String, val starred: Int, val ringtone: String?
                     )
-
                     val contactInfoMap = mutableMapOf<Int, ContactInfo>()
                     context.queryCursor(
                         Contacts.CONTENT_URI,
                         arrayOf(
-                            Contacts._ID,
-                            Contacts.DISPLAY_NAME_PRIMARY,
-                            Contacts.PHOTO_URI,
-                            Contacts.PHOTO_THUMBNAIL_URI,
-                            Contacts.STARRED,
-                            Contacts.CUSTOM_RINGTONE
+                            Contacts._ID, Contacts.DISPLAY_NAME_PRIMARY,
+                            Contacts.PHOTO_URI, Contacts.PHOTO_THUMBNAIL_URI,
+                            Contacts.STARRED, Contacts.CUSTOM_RINGTONE
                         ),
                         "${Contacts._ID} IN (${contactIdSet.joinToString(",")})",
-                        null,
-                        null,
-                        true
+                        null, null, true
                     ) { cursor ->
                         val cid = cursor.getIntValue(Contacts._ID)
                         contactInfoMap[cid] = ContactInfo(
@@ -471,6 +414,7 @@ class ContactsHelper(val context: Context) {
                 }
             }
 
+            // IMPORTANT: stop further normal-list population after secure-mode handling
             return
         }
 
@@ -1118,6 +1062,9 @@ class ContactsHelper(val context: Context) {
         val contact = parseContactCursor(selection, selectionArgs)
         if (contact != null) return contact
 
+        // Fallback: Data.CONTENT_URI does not expose rows for protected contacts even after
+        // unlock_all_with_pin. If this raw contact is a known unlocked contact, build the
+        // Contact from Contacts.CONTENT_URI which does respect the unlock state.
         if (!ContactProtectionHelper.isUnlockedInSession()) return null
         val unlockedIds = ContactProtectionHelper.getUnlockedRawContactIds() ?: return null
         if (!unlockedIds.contains(id.toLong())) return null
@@ -1125,14 +1072,13 @@ class ContactsHelper(val context: Context) {
     }
 
     private fun buildContactFromContactsUri(rawContactId: Int): Contact? {
+        // Step 1: raw_contact_id → (contact_id, account_name)
         var contactId = 0
         var accountName = ""
         context.contentResolver.query(
             RawContacts.CONTENT_URI,
             arrayOf(RawContacts.CONTACT_ID, RawContacts.ACCOUNT_NAME),
-            "${RawContacts._ID} = ?",
-            arrayOf(rawContactId.toString()),
-            null
+            "${RawContacts._ID} = ?", arrayOf(rawContactId.toString()), null
         )?.use { c ->
             if (c.moveToFirst()) {
                 contactId = c.getIntValue(RawContacts.CONTACT_ID)
@@ -1141,6 +1087,7 @@ class ContactsHelper(val context: Context) {
         }
         if (contactId == 0) return null
 
+        // Step 2: contact_id → display info from Contacts.CONTENT_URI (unlocked here)
         var displayName = ""
         var photoUri = ""
         var thumbnailUri = ""
@@ -1148,38 +1095,34 @@ class ContactsHelper(val context: Context) {
         var ringtone: String? = null
         context.contentResolver.query(
             Contacts.CONTENT_URI,
-            arrayOf(
-                Contacts._ID,
-                Contacts.DISPLAY_NAME_PRIMARY,
-                Contacts.PHOTO_URI,
-                Contacts.PHOTO_THUMBNAIL_URI,
-                Contacts.STARRED,
-                Contacts.CUSTOM_RINGTONE
-            ),
-            "${Contacts._ID} = ?",
-            arrayOf(contactId.toString()),
-            null
+            arrayOf(Contacts._ID, Contacts.DISPLAY_NAME_PRIMARY,
+                    Contacts.PHOTO_URI, Contacts.PHOTO_THUMBNAIL_URI,
+                    Contacts.STARRED, Contacts.CUSTOM_RINGTONE),
+            "${Contacts._ID} = ?", arrayOf(contactId.toString()), null
         )?.use { c ->
             if (c.moveToFirst()) {
-                displayName = c.getStringValue(Contacts.DISPLAY_NAME_PRIMARY) ?: ""
-                photoUri = c.getStringValue(Contacts.PHOTO_URI) ?: ""
+                displayName  = c.getStringValue(Contacts.DISPLAY_NAME_PRIMARY) ?: ""
+                photoUri     = c.getStringValue(Contacts.PHOTO_URI) ?: ""
                 thumbnailUri = c.getStringValue(Contacts.PHOTO_THUMBNAIL_URI) ?: ""
-                starred = c.getIntValue(Contacts.STARRED)
-                ringtone = c.getStringValue(Contacts.CUSTOM_RINGTONE)
+                starred      = c.getIntValue(Contacts.STARRED)
+                ringtone     = c.getStringValue(Contacts.CUSTOM_RINGTONE)
             }
         }
 
+        // Step 3: load extended data rows by raw contact ID (may be empty if Data is still
+        // filtered for this contact, but at minimum the detail view will open)
         val phoneNumbers = getPhoneNumbers(rawContactId)[rawContactId] ?: ArrayList()
-        val emails = getEmails(rawContactId)[rawContactId] ?: ArrayList()
-        val addresses = getAddresses(rawContactId)[rawContactId] ?: ArrayList()
-        val events = getEvents(rawContactId)[rawContactId] ?: ArrayList()
-        val notes = getNotes(rawContactId)[rawContactId] ?: ""
+        val emails       = getEmails(rawContactId)[rawContactId]       ?: ArrayList()
+        val addresses    = getAddresses(rawContactId)[rawContactId]    ?: ArrayList()
+        val events       = getEvents(rawContactId)[rawContactId]       ?: ArrayList()
+        val notes        = getNotes(rawContactId)[rawContactId]        ?: ""
         val organization = getOrganizations(rawContactId)[rawContactId] ?: Organization("", "")
-        val websites = getWebsites(rawContactId)[rawContactId] ?: ArrayList()
-        val relations = getRelations(rawContactId)[rawContactId] ?: ArrayList()
+        val websites     = getWebsites(rawContactId)[rawContactId]     ?: ArrayList()
+        val relations    = getRelations(rawContactId)[rawContactId]    ?: ArrayList()
         val storedGroups = getStoredGroupsSync()
-        val groups = getContactGroups(storedGroups, contactId)[contactId] ?: ArrayList()
+        val groups       = getContactGroups(storedGroups, contactId)[contactId] ?: ArrayList()
 
+        android.util.Log.d("ContactProtection", "buildContactFromContactsUri: rawId=$rawContactId contactId=$contactId name='$displayName' phones=${phoneNumbers.size}")
         return Contact(
             rawContactId, "", displayName, "", "", "", "",
             photoUri, phoneNumbers, emails, addresses, events, accountName,
@@ -1980,11 +1923,19 @@ class ContactsHelper(val context: Context) {
         }
     }
 
+    /**
+     * Batch size for bulk insert (import). Scales with total like delete: more contacts → larger batches (fewer round-trips).
+     * Cap 50 keeps ops/batch under provider limit (Too many content provider operations); ~25 ops/contact ⇒ ~1250 ops/batch.
+     */
     fun getInsertContactsBatchSize(total: Int): Int = (total / 15).coerceIn(20, 50)
 
+    /**
+     * Inserts multiple contacts in a single applyBatch. Used by import to reduce round-trips.
+     * Per-contact post-processing (photo, starred, getRealContactId) is still done after the batch.
+     */
     fun insertContactsBatch(contacts: List<Contact>): Boolean {
         if (contacts.isEmpty()) return true
-        if (!context.hasPermission(PERMISSION_WRITE_CONTACTS)) return false
+        if (!context.hasPermission(com.goodwy.commons.helpers.PERMISSION_WRITE_CONTACTS)) return false
         try {
             val operations = ArrayList<ContentProviderOperation>()
             val rawContactOpIndices = ArrayList<Int>()
@@ -2560,7 +2511,7 @@ class ContactsHelper(val context: Context) {
             val resolver = context.contentResolver
             val contactIds = contacts.map { it.id.toLong() }.filter { it > 0 }
             val total = contactIds.size
-            
+
             if (contactIds.isEmpty()) {
                 onProgress?.invoke(0, total)
                 return true
@@ -2568,8 +2519,7 @@ class ContactsHelper(val context: Context) {
 
             onProgress?.invoke(0, total)
 
-            // Chunk size scales with total: smaller batches for small deletes
-            // provide smoother progress; larger batches speed up big deletes.
+            // Chunk size scales with total: smaller batches for small deletes (more progress updates), larger for big deletes.
             val chunkSize = (total / 15).coerceIn(10, 500)
             val uri = RawContacts.CONTENT_URI
             var deleted = 0
@@ -2580,7 +2530,7 @@ class ContactsHelper(val context: Context) {
                 deleted = minOf(deleted + chunk.size, total)
                 onProgress?.invoke(deleted, total)
             }
-            
+
             true
         } catch (e: Exception) {
             context.showErrorToast(e)
